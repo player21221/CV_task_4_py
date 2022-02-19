@@ -116,7 +116,7 @@ def define_mask(im1, im2, trh = 128):
     #         if (im1[i,j] < im2[i,j]):
     #             mask[i,j]=1
     # return mask
-    return (abs(im1-trh) > abs(im2-trh))
+    return (abs(im1.astype(np.int)-trh) < abs(im2.astype(np.int)-trh))
 
 def define_multi_mask(im, trh = 128):
     return np.argmin(trh-im, axis=2)
@@ -131,13 +131,17 @@ def sum_multi_mask(mask, im):
 # def pyramidal_merge_multiframe(ims, mask, nlevels=-1):
 #     pyrm = make_gaussian_pyramide(mask)
 
-im1 = cv2.imread("photo1645261254(1).jpeg")
-im2 = cv2.imread("photo1645261254.jpeg")
+im1 = cv2.imread("photo1645261254(1).jpeg") # m=0 gets from bright
+im2 = cv2.imread("photo1645261254.jpeg") # m=1 gets form dark
 msk = define_mask(im2, im1).astype(np.uint8)*255
+# im1m = im1.astype(np.int) - 128
+# im2m = im2.astype(np.int) - 128
+result = test_pyramidal_merge_pair(im1,im2,msk[:,:,1])
 cv2.imshow("mask", msk)
 cv2.imshow("im1", im1)
 cv2.imshow("im2", im2)
-cv2.imshow("im1-128", abs(im1-128))
-cv2.imshow("im2-128", abs(im2-128))
+cv2.imshow("result", result)
+# cv2.imshow("im1-128", abs(im1m).astype(np.uint8))
+# cv2.imshow("im2-128", abs(im2m).astype(np.uint8))
 
 cv2.waitKey()
