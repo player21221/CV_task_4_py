@@ -97,33 +97,47 @@ def pyramidal_merge_pair(im1, im2, mask, nlevels=-1):
 
     return u
 
-def test_pyramidal_merge_pair(m):
-    im1 = cv2.imread('data/merge-2/pig.png')
-    im2 = cv2.imread('data/merge-2/me.png')
-    #m = cv2.imread('data/merge-2/mask.png', 0)
-    nlevels = -1
+def test_pyramidal_merge_pair(im1, im2, m, nlevels = -1):
+    # im1 = cv2.imread('data/merge-2/pig.png')
+    # im2 = cv2.imread('data/merge-2/me.png')
+    # m = cv2.imread('data/merge-2/mask.png', 0)
+    # nlevels = -1
     res = np.zeros(im1.shape, dtype=np.uint8)
     res[:, :, 0] = pyramidal_merge_pair(im1[:, :, 0], im2[:, :, 0], m, nlevels)
     res[:, :, 1] = pyramidal_merge_pair(im1[:, :, 1], im2[:, :, 1], m, nlevels)
     res[:, :, 2] = pyramidal_merge_pair(im1[:, :, 2], im2[:, :, 2], m, nlevels)
-    cv2.imwrite('data/merge-2/merged.png', res)
+    #cv2.imwrite('data/merge-2/merged.png', res)
+    return res
 
-def define_mask(im1, im2):
+def define_mask(im1, im2, trh = 128):
     # mask=np.zeros(im1.shape, dtype=np.uint8)
     # for i in range(0, im1.shape[0]):
     #     for j in range(0, im2.shape[1]):
     #         if (im1[i,j] < im2[i,j]):
     #             mask[i,j]=1
     # return mask
-    return ((128 - im1) < (128 - im2))
+    return (abs(im1-trh) > abs(im2-trh))
 
-def define_multi_mask(im):
-    return np.argmin(128-im, axis=2)
+def define_multi_mask(im, trh = 128):
+    return np.argmin(trh-im, axis=2)
 
 def sum_multi_mask(mask, im):
     lapl = np.zeros(mask.shape[0:1])
     for i in range(0,mask.shape[2]):
         lapl += im[:,:,i]*((i-mask) == 0)
     # lapl = sum(im[:,:,i]*((i-mask) == 0),)
-    return lapl;
+    return lapl
 
+# def pyramidal_merge_multiframe(ims, mask, nlevels=-1):
+#     pyrm = make_gaussian_pyramide(mask)
+
+im1 = cv2.imread("photo1645261254(1).jpeg")
+im2 = cv2.imread("photo1645261254.jpeg")
+msk = define_mask(im2, im1).astype(np.uint8)*255
+cv2.imshow("mask", msk)
+cv2.imshow("im1", im1)
+cv2.imshow("im2", im2)
+cv2.imshow("im1-128", abs(im1-128))
+cv2.imshow("im2-128", abs(im2-128))
+
+cv2.waitKey()
