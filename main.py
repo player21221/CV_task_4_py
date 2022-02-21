@@ -147,7 +147,7 @@ def sum_multi_mask(mask, im):
     # lapl = sum(im[:,:,i]*((i-mask) == 0),)
     return lapl
 
-def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3, normalize_histogram=0):
+def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3, normalize_histogram=0, brgcnt=[0,1]):
     # maskm = [np.zeros(mask.shape[1:2]) for _ in range(len(imm))]
     mpyrm = [0]*len(imm)
     ipyrm = [[0]*colors for _ in range(len(imm))]
@@ -206,17 +206,41 @@ def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3, normalize_histogr
         u = clahe.apply(u)
     elif normalize_histogram == 2:
         u = cv2.equalizeHist(u)
-    u = np.clip(u, 0, 255).astype(np.uint8)
+    u = np.clip((u*brgcnt[1]+brgcnt[0]), 0, 255).astype(np.uint8)
     return u
 
 # def pyramidal_merge_multiframe(ims, mask, nlevels=-1):
 #     pyrm = make_gaussian_pyramide(mask)
 
-im1 = cv2.imread("photo1645261254.jpeg") # m=1 gets form dark
-im2 = cv2.imread("photo1645261254(1).jpeg") # m=0 gets from bright
-# msk = define_mask(im2, im1).astype(np.uint8)*255
+# filenames = [
+#     "photo1645261254.jpeg",
+#     "photo1645261254(1).jpeg"
+# ]
 
-imm=[im1, im2]
+filenames = [
+    "photo_2022-02-21_20-17-12.jpg",
+    "photo_2022-02-21_20-17-14.jpg",
+    "photo_2022-02-21_20-17-17.jpg",
+    "photo_2022-02-21_20-17-20.jpg",
+    "photo_2022-02-21_20-17-23.jpg",
+    "photo_2022-02-21_20-17-26.jpg",
+    "photo_2022-02-21_20-17-30.jpg",
+    "photo_2022-02-21_20-17-33.jpg",
+    "photo_2022-02-21_20-17-36.jpg",
+    "photo_2022-02-21_20-17-40.jpg"
+]
+
+imm=[0 for _ in range(len(filenames))]
+for f in range(len(filenames)):
+    imm[f]=cv2.imread(filenames[f])
+
+
+
+# im1 = cv2.imread("photo1645261254.jpeg") # m=1 gets form dark
+# im2 = cv2.imread("photo1645261254(1).jpeg") # m=0 gets from bright
+# # msk = define_mask(im2, im1).astype(np.uint8)*255
+#
+# imm=[im1, im2]
 
 msk=define_mask_for_color(imm).astype(np.uint8)
 
@@ -230,11 +254,12 @@ result = np.empty(imm[0].shape)
 # for color in range(3):
 #     result[:,:,color]=pyramidal_merge_multiframe(imm[:,:,:,color],msk)
 
-result = pyramidal_merge_multiframe(imm,msk, normalize_histogram=0)
+result = pyramidal_merge_multiframe(imm,msk, normalize_histogram=0,brgcnt=[-100,1])
 
-cv2.imshow("mask", msk.astype(np.uint8))
-cv2.imshow("im1", im1)
-cv2.imshow("im2", im2)
+cv2.imshow("mask", (msk*(255/(len(imm)-1))).astype(np.uint8))
+#for f in range(len(filenames)): cv2.imshow(filenames[f],imm[f])
+# cv2.imshow("im1", im1)
+# cv2.imshow("im2", im2)
 cv2.imshow("result", result.astype(np.uint8))
 # cv2.imshow("im1-128", abs(im1m).astype(np.uint8))
 # cv2.imshow("im2-128", abs(im2m).astype(np.uint8))
