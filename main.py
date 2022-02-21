@@ -147,55 +147,66 @@ def sum_multi_mask(mask, im):
     # lapl = sum(im[:,:,i]*((i-mask) == 0),)
     return lapl
 
-def pyramidal_merge_multiframe(imm, mask, nlevels=-1):
+def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3, normalize_histogram=0):
     # maskm = [np.zeros(mask.shape[1:2]) for _ in range(len(imm))]
-    mpyrm = []
-    ipyrm = []
+    mpyrm = [0]*len(imm)
+    ipyrm = [[0]*colors for _ in range(len(imm))]
     for i in range(0,len(imm)):
-        # maskm[i]= (mask == i)
+        masktmp= (mask == i).astype(np.int16)*255
         # mpyrm[i] = make_gaussian_pyramide(maskm[i],nlevels)
         # ipyrm[i] = make_laplacian_pyramide(imm[i],nlevels)
-        mpyrm[i] = make_gaussian_pyramide((mask == i),nlevels)
-        ipyrm[i] = make_laplacian_pyramide(imm[i],nlevels)
+        mpyrm[i] = make_gaussian_pyramide(masktmp,nlevels)
+        for col in range(colors):
+            ipyrm[i][col] = make_laplacian_pyramide(imm[i][:,:,col],nlevels)
     # pyrm = make_gaussian_pyramide(mask, nlevels)
     # pyr1 = make_laplacian_pyramide(im1, nlevels)
     # pyr2 = make_laplacian_pyramide(im2, nlevels)
 
     # mask = cv2.GaussianBlur(mask, (7, 7), 0)
 
-    # layer 0
-    u=np.zeros(ipyrm[0][-1].shape)
-    for i in range (len(imm)):
-        u+=ipyrm[i][-1]*mpyrm[i][-1]
+        # layer 0
+    u = [np.zeros(ipyrm[0][0][-1].shape) for _ in range(colors)]
+    for col in range(colors):
+
+        for i in range (len(imm)):
+            u[col]+=ipyrm[i][col][-1]*mpyrm[i][-1]
 
 
-    # u1 = pyr1[-1].astype(np.int32)
-    # u2 = pyr2[-1].astype(np.int32)
-    # m = pyrm[-1]
-    #
-    # u = (u1 * (255 - m) + u2 * m) // 255
-    # u = np.clip(u, -16536, 16535).astype(np.int16)
+        # u1 = pyr1[-1].astype(np.int32)
+        # u2 = pyr2[-1].astype(np.int32)
+        # m = pyrm[-1]
+        #
+        # u = (u1 * (255 - m) + u2 * m) // 255
+        # u = np.clip(u, -16536, 16535).astype(np.int16)
 
-    # for ipyri, mpyri in zip(ipyrm[:][-2::-1],mpyrm[:][-2::-1]):
-    #     u = cv2.pyrUp(u, dstsize=mpyri[0].shape[::-1])
-    #     for i in range(len(imm)):
-    #         u += ipyri[i] * mpyri[i]
+        # for ipyri, mpyri in zip(ipyrm[:][-2::-1],mpyrm[:][-2::-1]):
+        #     u = cv2.pyrUp(u, dstsize=mpyri[0].shape[::-1])
+        #     for i in range(len(imm)):
+        #         u += ipyri[i] * mpyri[i]
 
-    for i in range(len(ipyrm[0])-2,0,-1):
-        u = cv2.pyrUp(u, dstsize=mpyrm[0][i].shape[::-1])
-        for j in range(len(imm)):
-            u += ipyrm[j][i] * mpyrm[j][i]
+        for i in range(len(ipyrm[0][col])-2,-1,-1):
+            u[col] = cv2.pyrUp(u[col], dstsize=mpyrm[0][i].shape[::-1])
+            for j in range(len(imm)):
+                u[col] += ipyrm[j][col][i] * mpyrm[j][i]
 
-    # rest layers
-    # for lap1, lap2, m in zip(pyr1[-2::-1], pyr2[-2::-1], pyrm[-2::-1]):
-    #     u = cv2.pyrUp(u, dstsize=m.shape[::-1])
-    #     lap1 = lap1.astype(np.int32)
-    #     lap2 = lap2.astype(np.int32)
-    #     lap = (lap1 * (255 - m) + lap2 * m) // 255
-    #     u += lap
+        # rest layers
+        # for lap1, lap2, m in zip(pyr1[-2::-1], pyr2[-2::-1], pyrm[-2::-1]):
+        #     u = cv2.pyrUp(u, dstsize=m.shape[::-1])
+        #     lap1 = lap1.astype(np.int32)
+        #     lap2 = lap2.astype(np.int32)
+        #     lap = (lap1 * (255 - m) + lap2 * m) // 255
+        #     u += lap
+    u = np.array(u)
+    u = np.moveaxis(u, 0, -1) / 255
 
+    if normalize_histogram == 1:
+        #https://docs.opencv.org/3.4/d5/daf/tutorial_py_histogram_equalization.html
+        # create a CLAHE object (Arguments are optional).
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        u = clahe.apply(u)
+    elif normalize_histogram == 2:
+        u = cv2.equalizeHist(u)
     u = np.clip(u, 0, 255).astype(np.uint8)
-
     return u
 
 # def pyramidal_merge_multiframe(ims, mask, nlevels=-1):
@@ -216,10 +227,10 @@ msk=define_mask_for_color(imm).astype(np.uint8)
 
 result = np.empty(imm[0].shape)
 
-for color in range(3):
-    result[:,:,color]=pyramidal_merge_multiframe(imm[:,:,:,color],msk)
+# for color in range(3):
+#     result[:,:,color]=pyramidal_merge_multiframe(imm[:,:,:,color],msk)
 
-
+result = pyramidal_merge_multiframe(imm,msk, normalize_histogram=0)
 
 cv2.imshow("mask", msk.astype(np.uint8))
 cv2.imshow("im1", im1)
