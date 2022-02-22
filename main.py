@@ -147,7 +147,7 @@ def sum_multi_mask(mask, im):
     # lapl = sum(im[:,:,i]*((i-mask) == 0),)
     return lapl
 
-def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3, normalize_histogram=0, brgcnt=[0,1]):
+def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3):
     # maskm = [np.zeros(mask.shape[1:2]) for _ in range(len(imm))]
     mpyrm = [0]*len(imm)
     ipyrm = [[0]*colors for _ in range(len(imm))]
@@ -199,36 +199,86 @@ def pyramidal_merge_multiframe(imm, mask, nlevels=-1,colors=3, normalize_histogr
     u = np.array(u)
     u = np.moveaxis(u, 0, -1) / 255
 
-    if normalize_histogram == 1:
+    return u
+
+def post_process(u, normalize_histogram=0, brgcnt=[0,1], brcn_hsv=[0,1],B = 0):
+     #2 for hsv, 0 for ycc
+    if normalize_histogram == 1:  #only for hsv
         #https://docs.opencv.org/3.4/d5/daf/tutorial_py_histogram_equalization.html
         # create a CLAHE object (Arguments are optional).
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        u = clahe.apply(u)
+        utmp=u[:,:,B].astype(np.uint8)
+        # u[:,:,B] = clahe.apply(u[:,:,B])
+        utmp = clahe.apply(utmp)
+        # u[:,:,B]=utmp
     elif normalize_histogram == 2:
-        u = cv2.equalizeHist(u)
+        u[:,:,B] = cv2.equalizeHist(u[:,:,B])
+    u[:,:,B]=u[:,:,B]*brcn_hsv[1]+brcn_hsv[0]
     u = np.clip((u*brgcnt[1]+brgcnt[0]), 0, 255).astype(np.uint8)
     return u
 
 # def pyramidal_merge_multiframe(ims, mask, nlevels=-1):
 #     pyrm = make_gaussian_pyramide(mask)
 
-# filenames = [
-#     "photo1645261254.jpeg",
-#     "photo1645261254(1).jpeg"
-# ]
+
+def conv_color(imm, param):
+    im_hsv=[0 for _ in range(len(imm))]
+    for i in range(len(imm)):
+        im_hsv[i] = cv2.cvtColor(imm[i], param)
+    return im_hsv
+
+conv_bgr2hsv = lambda imm: conv_color(imm, cv2.COLOR_BGR2HSV)
+conv_bgr2yuv = lambda imm: conv_color(imm, cv2.COLOR_BGR2YUV)
+conv_hsv2brg = lambda imm: conv_color(imm, cv2.COLOR_HSV2BGR)
+conv_yuv2brg = lambda imm: conv_color(imm, cv2.COLOR_HSV2BGR)
+conv_bgr2lab = lambda imm: conv_color(imm, cv2.COLOR_BGR2LAB)
+conv_lab2bgr = lambda imm: conv_color(imm, cv2.COLOR_LAB2BGR)
+
+
+
+def test_change_val(val):
+    val+=1
+    return
+
+
+bgr2hsv = lambda bgr: cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+bgr2yuv = lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+hsv2bgr = lambda hsv: cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+yuv2bgr = lambda img: cv2.cvtColor(img, cv2.COLOR_YUV2BGR)
+bgr2lab = lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+lab2bgr = lambda img: cv2.cvtColor(img, cv2.COLOR_LAB2BGR)
+
+# def bgr2val_col_rat(im):
+#     res = np.empty(im.shape)
+#     res[:,:,0]=(im[:,:,0]+im[:,:,1]+im[:,:,2])/3
+#     res[:,:,1]=(im[:,:,0]+im[:,:,2])/(im[:,:,1]*2)
+#     res[:,:,2]=(im[:,:,0])/(im[:,:,2])
+#     return res
+#
+# def val_col_rat2bgr(im):
+#     res = np.empty(im.shape)
+#     res[:, :, 0] = res[:,:,0]
+#     res[:, :, 1] = (im[:, :, 0] + im[:, :, 2]) / (im[:, :, 1] * 2)
+#     res[:, :, 2] = (im[:, :, 0]) / (im[:, :, 2])
 
 filenames = [
-    "photo_2022-02-21_20-17-12.jpg",
-    "photo_2022-02-21_20-17-14.jpg",
-    "photo_2022-02-21_20-17-17.jpg",
-    "photo_2022-02-21_20-17-20.jpg",
-    "photo_2022-02-21_20-17-23.jpg",
-    "photo_2022-02-21_20-17-26.jpg",
-    "photo_2022-02-21_20-17-30.jpg",
-    "photo_2022-02-21_20-17-33.jpg",
-    "photo_2022-02-21_20-17-36.jpg",
-    "photo_2022-02-21_20-17-40.jpg"
+    "photo1645261254.jpeg",
+    "photo1645261254(1).jpeg"
 ]
+resultname = "result_sigma_coworking"
+# filenames = [
+#     "photo_2022-02-21_20-17-12.jpg",
+#     "photo_2022-02-21_20-17-14.jpg",
+#     "photo_2022-02-21_20-17-17.jpg",
+#     "photo_2022-02-21_20-17-20.jpg",
+#     "photo_2022-02-21_20-17-23.jpg",
+#     "photo_2022-02-21_20-17-26.jpg",
+#     "photo_2022-02-21_20-17-30.jpg",
+#     "photo_2022-02-21_20-17-33.jpg",
+#     "photo_2022-02-21_20-17-36.jpg",
+#     "photo_2022-02-21_20-17-40.jpg"
+# ]
+# resultname = "result_beta_lab"
 
 imm=[0 for _ in range(len(filenames))]
 for f in range(len(filenames)):
@@ -236,11 +286,13 @@ for f in range(len(filenames)):
 
 
 
-# im1 = cv2.imread("photo1645261254.jpeg") # m=1 gets form dark
+#im1 = cv2.imread("photo1645261254.jpeg") # m=1 gets form dark
 # im2 = cv2.imread("photo1645261254(1).jpeg") # m=0 gets from bright
 # # msk = define_mask(im2, im1).astype(np.uint8)*255
 #
 # imm=[im1, im2]
+
+#im2 = cv2.cvtColor(im1, cv2.COLOR_BGR2HSV)
 
 msk=define_mask_for_color(imm).astype(np.uint8)
 
@@ -254,13 +306,21 @@ result = np.empty(imm[0].shape)
 # for color in range(3):
 #     result[:,:,color]=pyramidal_merge_multiframe(imm[:,:,:,color],msk)
 
-result = pyramidal_merge_multiframe(imm,msk, normalize_histogram=0,brgcnt=[-100,1])
+#result = pyramidal_merge_multiframe(imm,msk, normalize_histogram=0,brgcnt=[-100,1])
+result = pyramidal_merge_multiframe(conv_bgr2yuv(imm), msk)
+brg_cont=[70, .5]
+# brg_cont=[-50, .7]
+result = yuv2bgr(post_process(result, normalize_histogram=0, brcn_hsv=brg_cont,B=0))
 
-cv2.imshow("mask", (msk*(255/(len(imm)-1))).astype(np.uint8))
+resultfilename = resultname + "_" + str(brg_cont)
+cv2.imshow(resultfilename + "_mask", (msk*(255/(len(imm)-1))).astype(np.uint8))
+cv2.imwrite(resultfilename + "_mask" + ".jpeg", (msk*(255/(len(imm)-1))).astype(np.uint8))
 #for f in range(len(filenames)): cv2.imshow(filenames[f],imm[f])
 # cv2.imshow("im1", im1)
 # cv2.imshow("im2", im2)
-cv2.imshow("result", result.astype(np.uint8))
+
+cv2.imshow(resultfilename, result.astype(np.uint8))
+cv2.imwrite(resultfilename + ".jpeg",result.astype(np.uint8))
 # cv2.imshow("im1-128", abs(im1m).astype(np.uint8))
 # cv2.imshow("im2-128", abs(im2m).astype(np.uint8))
 
